@@ -2,6 +2,11 @@
 using System.Collections;
 using UnityEngine;
 
+/// <summary>
+/// This class is used to control the camera with the mouse.
+/// The camera orbits around the player depending on the mouse movement.
+/// </summary>
+
 public class CameraController : MonoBehaviour
 {
     public Vector3 originalOffset;
@@ -12,15 +17,14 @@ public class CameraController : MonoBehaviour
 
     void Start()
         {
-        //        offset = target.transform.position + transform.position + originalOffset;
         offset = originalOffset;
+
         }
     void LateUpdate()
-    {
-
+        {
         offset = Quaternion.AngleAxis(Input.GetAxis("Mouse X") * mouseSpeed, Vector3.up) * offset;
         transform.position = target.transform.position + offset;
-       // transform.RotateAround(target.transform.position + transform.position, Vector3.up, Input.GetAxis("Mouse X") * mouseSpeed);
         transform.LookAt(target.transform);
         }
+
 }

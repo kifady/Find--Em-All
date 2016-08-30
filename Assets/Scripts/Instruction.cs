@@ -3,6 +3,10 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 
+/// <summary>
+/// This class is used to set the instructions text UI text to a string defined in the editor.
+/// </summary>
+
 public class Instruction : MonoBehaviour
 {
     public Text instruction;

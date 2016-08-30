@@ -2,6 +2,10 @@
 using System.Collections;
 using UnityEngine;
 
+/// <summary>
+/// This class is used to control the ball movement, and what happens when it collides with something or enters a trigger.
+/// </summary>
+
 public class BallController : MonoBehaviour
     {
     [Range(-1, 0)] public float dotProductResult;
@@ -11,7 +15,7 @@ public class BallController : MonoBehaviour
     public float changeDirectionBoost = 10f;
     public float jumpHeight = 2f;
     public float friction = -2.5f;
-    public float explosionForce = 25f;
+    public float deathYLimit = -10f;
     public int lives = 3;
     public bool tutorialLevel = false;
     public bool jumpAllowed = true;
@@ -26,6 +30,8 @@ public class BallController : MonoBehaviour
 
     public delegate void LifeLost();
     public static event LifeLost OnLifeLost;
+    public delegate void RespawnEvent();
+    public static event RespawnEvent OnRespawn;
 
     public delegate void GameOver();
     public static event GameOver OnGameOver;
@@ -33,29 +39,26 @@ public class BallController : MonoBehaviour
     public delegate void PlaySound(string name, Vector3 postition);
     public static event PlaySound OnPlaySound;
 
-    public delegate void ReachedFinish(Collider col);
+    public delegate void ReachedFinish(GameObject gameObj);
     public static event ReachedFinish OnReachFinish;
     #endregion
 
 
     Rigidbody ballRig;
-    Vector3 spawn, currentPosition,oldPosition;
-    bool canJump, collectedAllCoins = false;
+    Vector3 spawn;
+    bool canJump;
+
+    public AudioClip coinPickupClip;
+    public AudioClip finishClip;
 
     void Start()
         {
-        //audioSource = GetComponent<AudioSource>();
         ballRig = GetComponent<Rigidbody>();
         spawn = transform.position;
-        currentPosition = spawn; oldPosition = spawn;
         canJump = jumpAllowed;
         }
 
-    public void HasCollectedAllCoins()
-        {
-        collectedAllCoins = true;
-        }
-
+ 
     void Update()
         {
         Vector3 input = new Vector3(Input.GetAxisRaw("Horizontal"), 0, Input.GetAxisRaw("Vertical"));
@@ -71,19 +74,12 @@ public class BallController : MonoBehaviour
                 }
             }
 
-       else if (transform.position.y <= -10)
+        else if (transform.position.y <= deathYLimit)
             {
-            ballRig.velocity = Vector3.zero;
-            transform.position = spawn;
-            ballRig.angularVelocity = Vector3.zero;
-            transform.rotation = Quaternion.identity;
-            lives--;
-            if (OnLifeLost != null)
-                {
-                OnLifeLost();
-                }
+            LoseLife();
+            Respawn();
             }
-  
+
         else
             {
             if (Vector3.Dot(velocity.normalized, ballRig.velocity.normalized) <= dotProductResult)
@@ -108,20 +104,52 @@ public class BallController : MonoBehaviour
             }
         }
 
+    private void Respawn()
+        {
+        GetComponent<BallController>().enabled = true;
+        ballRig.velocity = Vector3.zero;
+        transform.position = spawn;
+        ballRig.angularVelocity = Vector3.zero;
+        transform.rotation = Quaternion.identity;
+        ObjectsToRespawn.instance.ReEnable(0.35f);
+        }
+
+    public void LoseLife()
+        {
+        lives--;
+        if (OnLifeLost != null)
+            {
+            OnLifeLost();
+            }
+        }
+    internal void TriggerRespawn(float duration)
+        {
+        LoseLife();
+        Invoke("Respawn", duration);
+        }
+    internal void TriggerExplosionForce(float force, Vector3 explosionPos)
+        {
+        ballRig.AddExplosionForce(30f * force,explosionPos, 5f);
+        }
+
+
     void OnCollisionEnter(Collision col)
         {
         if (col.gameObject.CompareTag("Ground") || col.gameObject.CompareTag("Platform"))
             {
             canJump = true;
             }
-        if (col.gameObject.CompareTag("Mine"))
+       /* if (col.gameObject.CompareTag("Mine"))
             {
-            lives--;
-            ballRig.AddExplosionForce(30f * explosionForce, col.transform.position, 5f);
+            GameObject mine = col.gameObject;
+            LoseLife();
+            float force = mine.GetComponent<MineController>().GetExplosionForce();
+            ballRig.AddExplosionForce(30f * force, mine.transform.position, 5f);
             if (OnPlaySound != null)
                 {
-                OnPlaySound("MineHit", col.transform.position);
+                OnPlaySound("MineHit", mine.transform.position);
                 }
+
             if (OnLifeLost != null)
                 {
                 OnLifeLost();
@@ -130,9 +158,9 @@ public class BallController : MonoBehaviour
                 {
                 OnEnemyHit();
                 }
-            col.gameObject.GetComponent<EnemyController>().EnemyHit();
-            
-            }
+            mine.GetComponent<MineController>().DestroyMine();
+            Invoke("Respawn", mine.GetComponent<MineController>().explosionParticles.duration);
+            }*/
         }
 
     void OnTriggerEnter(Collider col)
@@ -143,10 +171,8 @@ public class BallController : MonoBehaviour
                 {
                 OnCoinPickup();
                 }
-            if (OnPlaySound != null)
-                {
-                OnPlaySound("CoinPickUp", col.transform.position);
-                }
+            SoundManager.instance.PlaySound(coinPickupClip, transform.position);
+
             Destroy(col.gameObject);
             }
         if (col.gameObject.CompareTag("Instruction"))
@@ -157,18 +183,27 @@ public class BallController : MonoBehaviour
             {
             if (OnReachFinish != null)
                 {
-                OnReachFinish(col);
+                OnReachFinish(col.gameObject);
                 }
             }
         
         }
+
     void OnTriggerExit(Collider col)
         {
         if (col.gameObject.CompareTag("Instruction"))
             {
             col.gameObject.GetComponent<Instruction>().DeactivateText();
             }
+        if (col.gameObject.CompareTag("Finish"))
+            {
+            col.gameObject.GetComponent<Instruction>().DeactivateText();
+            }
+        }
 
+    public void SetCanJump(bool jumpState)
+        {
+        canJump = jumpState;
         }
 
     }
@@ -178,13 +213,3 @@ public class BallController : MonoBehaviour
 
 
 
-
-
-
-/*
- if (Vector3.Angle(velocity, oldVelocity) > 150)
-            {
-            velocity *= 1.5f;
-            }
-            oldVelocity = ballRig.velocity;
-            */
