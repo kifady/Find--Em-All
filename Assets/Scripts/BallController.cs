@@ -84,7 +84,6 @@ public class BallController : MonoBehaviour
             {
             if (Vector3.Dot(velocity.normalized, ballRig.velocity.normalized) <= dotProductResult)
                 {
-                
                 ballRig.velocity.Set(ballRig.velocity.x / originalVelocityScale, ballRig.velocity.y, ballRig.velocity.z / originalVelocityScale);
                 velocity = velocity * changeDirectionBoost;
                 }
@@ -101,6 +100,7 @@ public class BallController : MonoBehaviour
         if (velocity == Vector3.zero)
             {
             ballRig.AddForce(new Vector3(ballRig.velocity.x, 0, ballRig.velocity.z) * friction);
+            ballRig.angularVelocity.Set(ballRig.angularVelocity.x * friction, ballRig.angularVelocity.y * friction, ballRig.angularVelocity.z * friction);
             }
         }
 
@@ -139,29 +139,16 @@ public class BallController : MonoBehaviour
             {
             canJump = true;
             }
-       /* if (col.gameObject.CompareTag("Mine"))
-            {
-            GameObject mine = col.gameObject;
-            LoseLife();
-            float force = mine.GetComponent<MineController>().GetExplosionForce();
-            ballRig.AddExplosionForce(30f * force, mine.transform.position, 5f);
-            if (OnPlaySound != null)
-                {
-                OnPlaySound("MineHit", mine.transform.position);
-                }
-
-            if (OnLifeLost != null)
-                {
-                OnLifeLost();
-                }
-            if (OnEnemyHit != null)
-                {
-                OnEnemyHit();
-                }
-            mine.GetComponent<MineController>().DestroyMine();
-            Invoke("Respawn", mine.GetComponent<MineController>().explosionParticles.duration);
-            }*/
         }
+
+    void OnCollisionExit(Collision col)
+        {
+        if (col.gameObject.CompareTag("Ground") || col.gameObject.CompareTag("Platform"))
+            {
+            canJump = false;
+            }
+        }
+
 
     void OnTriggerEnter(Collider col)
         {
